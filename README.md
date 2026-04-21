@@ -9,6 +9,11 @@ This project demonstrates a deep understanding of neural networks by implementin
 Most modern ML tutorials use high-level frameworks that hide the math. Here, I built everything manually using only NumPy to truly understand how neural networks work under the hood.
 
 ---
+## Data Source and Transformation
+
+The data was synthetic PII data which you can download in Excel form from [Mendeley Data](https://data.mendeley.com/datasets/tzrjx692jy/1). Once the data was downloaded I used Excel formulas and the PII feature columns to mask the PII in the document text column for roughly 3/4 of the rows for each set.
+
+---
 
 ## Project Overview
 
@@ -28,7 +33,7 @@ Instead of using simple Bag-of-Words or TF-IDF, I chose **GloVe (Global Vectors 
 - It captures **semantic meaning** — words with similar meanings have similar vectors
 - It handles context better than basic count-based methods
 - Averaging word vectors gives a simple yet powerful fixed-size representation for entire documents
-- It's a standard, well-studied embedding method from Stanford, making results more meaningful
+- It's a standard, well-studied embedding method from Stanford, making results more meaningful. You can download it [here](https://nlp.stanford.edu/data/glove.6B.zip).
 
 This approach is especially useful for PII detection, where understanding word relationships (e.g., names, addresses, IDs) matters.
 
@@ -113,3 +118,28 @@ The implementation also includes a numerically stable version to avoid overflow 
 | **Actual Has PII**| 2                | 6                 |
 ---
 
+## How to Run
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/NateBoyle/ScratchNet.git
+   cd ScratchNet
+   
+2. Install the required dependencies (if necessary):
+- pip install numpy pandas tqdm matplotlib scikit-learn  
+
+3. Download GloVe embeddings:
+- Download glove.6B.300d.zip from Stanford GloVe
+- Extract it and place glove.6B.300d.txt in the project root folder.  
+
+4. Open and run the notebook:
+- Launch Jupyter Notebook, VS Code, or Google Colab
+- Open ScratchNet.ipynb
+
+
+Important Notes:
+
+A small sample training dataset is included for quick testing and demonstration.
+The full training set (~45MB) is not included in the repo due to GitHub file size limits.
+Pre-trained model weights (scratchnet_2575weights_best.npz) are provided, so you can skip training and directly run the testing/evaluation cells.
+   
