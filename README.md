@@ -9,6 +9,7 @@ This project demonstrates a deep understanding of neural networks by implementin
 Most modern ML tutorials use high-level frameworks that hide the math. Here, I built everything manually using only NumPy to truly understand how neural networks work under the hood.
 
 ---
+
 ## Data Source and Transformation
 
 The data was synthetic PII data which you can download in Excel form from [Mendeley Data](https://data.mendeley.com/datasets/tzrjx692jy/1). Once the data was downloaded I used Excel formulas and the PII feature columns to mask the PII in the document text column for roughly 3/4 of the rows for each set.
