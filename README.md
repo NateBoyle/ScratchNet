@@ -10,22 +10,23 @@ Most modern ML tutorials use high-level frameworks that hide the math. Here, I b
 
 ---
 
-## Data Source and Transformation
-
-The data was synthetic PII data which you can download in Excel form from [Mendeley Data](https://data.mendeley.com/datasets/tzrjx692jy/1). Once the data was downloaded I used Excel formulas and the PII feature columns to mask the PII in the document text column for roughly 3/4 of the rows for each set.
-
----
-
 ## Project Overview
 
 - **Task**: Binary classification — Detect if masked text contains PII (1 = has PII, 0 = no PII)
+- **Data**: Mendeley Data Synthetic PII document text data
 - **Input**: Pre-trained GloVe word embeddings (300 dimensions)
 - **Model**: Custom `ScratchNet` (MLP) implemented from scratch
 - **Key Techniques**: He initialization, ReLU activation, Dropout, Weighted BCE loss, L2 regularization
 
 **Final Test Accuracy**: 93.3%
 
----
+---  
+
+## Data Source and Transformation
+
+The data was synthetic PII data which you can download in Excel form from [Mendeley Data](https://data.mendeley.com/datasets/tzrjx692jy/1). Once the data was downloaded I used Excel formulas and the PII feature columns to mask the PII in the document text column for roughly 3/4 of the rows for each set.
+
+---  
 
 ## Why GloVe Embeddings?
 
@@ -82,7 +83,7 @@ I built the entire network from scratch using only NumPy. Here’s what each maj
   - **Parameter Gradients ($dW$ and $db$):** The final gradients are averaged across the batch to ensure a stable "nudge" toward the optimal solution.
 
 #### **Parameter Update - `update_parameters()`**  
-  - **Mini-batch Stochastic Gradient Descent (SGD):*** Weights and biases are updated using a learning rate of 0.00375 and a batch_size=128.
+  - **Mini-batch Stochastic Gradient Descent (SGD):** Weights and biases are updated using a learning rate of 0.00375 and a batch_size=128.
     - **The "Goldilocks" Balance:** Mini-batch SGD sits between Stochastic (one point) and Full-Batch (all data) descent. It provides enough noise to escape "local minima" while maintaining the stability needed for smooth convergence.
   - **L2 Regularization (Weight Decay):** We apply a penalty of l2_lambda=0.005 to the weights during each update.
     - **How it works:** In every step, the weights are slightly "shrunk" toward zero before the gradient is applied $(W = W \times (1 - \text{lr} \cdot \lambda))$.
