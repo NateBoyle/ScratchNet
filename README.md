@@ -49,41 +49,61 @@ This turns each document into one vector that captures the overall meaning of th
 
 I built the entire network from scratch using only NumPy. Here’s what each major part does:
 
-- **Forward Pass**  
-  Takes the 300-dimensional input vector and passes it through two hidden layers (512 → 256 neurons).    
-  Each hidden layer uses **ReLU (Rectified Linear Unit) activation** (`np.maximum(0, Z)`).  
-  **What is ReLU?** It is a piecewise linear function that outputs the input directly if it is positive; otherwise, it outputs zero.  
-  **Why ReLU?** It is simple, fast, and helps prevent the “vanishing gradient” problem. It also makes the model learn faster and perform better on most classification tasks like this one.
-
-- **He Initialization**  
+#### **Initialization - `__init__()`**  
+  - **Layer Construction:**
+  Dynamically builds a list of dictionaries, each holding a weight matrix ($W$) and a bias vector ($b$).  
+  - **He Initialization ($W$):**  
   Before training, the weights are initialized using He initialization:  
   `W = np.random.randn(prev_size, h) * np.sqrt(2.0 / prev_size)`  
-  **What is He Initialization?** A method for setting the initial random weights of a neural network. It was specifically designed to solve the issues that arise when using the ReLU activation function in very deep networks.  
-  **Why it works well with ReLU:** ReLU “turns off” negative values, so this method keeps the variance of activations roughly the same across layers. This avoids exploding or vanishing signals early in training — a common problem with random initialization.
+    - **What is He Initialization?** A method for setting the initial random weights of a neural network. It was specifically designed to solve the issues that arise when using the ReLU activation function in very deep networks.  
+    - **Why He Initialization?** Standard random initialization can lead to signals that shrink (vanish) or grow too large (explode). He initialization is specifically designed to keep the signal variance stable when using ReLU activations.
+  - **Bias Initialization ($b$):** Biases are set to zero.Why zero? Since the random weights already "break symmetry" (ensuring every neuron learns something different), the biases can safely start at zero and be adjusted via addition during backpropagation.
 
-- **Backward Pass (Backpropagation)**  
-  After calculating the loss, the network computes gradients for every weight and bias using the chain rule.  
-  It correctly handles the ReLU derivative and applies the dropout masks saved during the forward pass.
+  
+#### **Forward Pass - `forward()`**  
+  - Takes the 300-dimensional input vector and passes it through two hidden layers (512 → 256 neurons).    
+  - Each hidden layer uses **ReLU (Rectified Linear Unit) activation** (`np.maximum(0, Z)`).  
+    - **What is ReLU?** It is a piecewise linear function that outputs the input directly if it is positive; otherwise, it outputs zero.  
+    - **Why ReLU?** It is simple, fast, and helps prevent the “vanishing gradient” problem. It also makes the model learn faster and perform better on most classification tasks like this one.  
+  - **Inverted Dropout Regularization:** During training, the model randomly "shuts off"  a certain amount (here 10%) of neurons in each hidden layer.  
+    - **Why Dropout?** It prevents the model from becoming too reliant on specific neurons, forcing it to learn more robust, redundant features. This is key to preventing overfitting.  
+    - **Scaling:** The remaining activations are scaled by 1 / (1 - dropout_rate) so that the total "volume" of the signal stays consistent between training and testing.  
+  - **Output Layer (Logits):** The final layer produces "raw" scores (logits) rather than probabilities.
+    - This allows for a more numerically stable calculation of the loss during training.  
 
-- **Parameter Update (Mini-batch SGD + L2 Regularization)**  
-  Weights and biases are updated using **mini-batch Stochastic Gradient Descent** (`batch_size=128`).  
-  **Mini-batch SGD** is the industry-standard algorithm for training deep learning models. It sits in the "Goldilocks zone" between processing one data point at a time and processing the entire dataset at once. It is much faster and more stable than full-batch gradient descent.  
-  We also add **L2 regularization** (weight decay) with `l2_lambda=0.005`.  
-  **L2 regularization** is a technique used to prevent overfitting by penalizing large weights in a neural network. It forces the model to keep the weights small, which results in a "simpler" model that generalizes better to unseen data and prevents the model from becoming too complex and overfitting to the training data.
+#### **Backward Pass/Backpropagation - `backward()`**  
+  - **Weighted Error Signal:** The process starts at the output layer by calculating the difference between the prediction and the truth, scaled by a `pos_weight=2.0`.
+    - **Why a weighted version?** Our dataset is imbalanced (~25% positive). A standard loss would allow the model to "ignore" the rare PII cases to get a decent score. By weighting the positive class 2×, we force the model to prioritize Recall—minimizing the chance of missing actual PII.
+  - **The ReLU Gradient:** As the error signal moves backward, it is only passed through neurons that were "active" during the forward pass.
+    - If the input to a ReLU neuron was $\leq 0$, the gradient is "killed" (set to 0), preventing the model from updating weights for inactive features.
+  - **Applying Dropout Masks:** The exact same "masks" (the neurons we shut off during the forward pass) are re-applied here.
+    - **Why?** You cannot blame a neuron for an error if it wasn't allowed to participate in the "thinking" process during the forward pass.
+  - **Parameter Gradients ($dW$ and $db$):** The final gradients are averaged across the batch to ensure a stable "nudge" toward the optimal solution.
 
-### 3. Loss Function
+#### **Parameter Update - `update_parameters()`**  
+  - **Mini-batch Stochastic Gradient Descent (SGD):*** Weights and biases are updated using a learning rate of 0.00375 and a batch_size=128.
+    - **The "Goldilocks" Balance:** Mini-batch SGD sits between Stochastic (one point) and Full-Batch (all data) descent. It provides enough noise to escape "local minima" while maintaining the stability needed for smooth convergence.
+  - **L2 Regularization (Weight Decay):** We apply a penalty of l2_lambda=0.005 to the weights during each update.
+    - **How it works:** In every step, the weights are slightly "shrunk" toward zero before the gradient is applied ($W = W \times (1 - \text{lr} \cdot \lambda)$).
+    - **Why L2?** It prevents any single weight from becoming too large and "overpowering" the model. This ensures the network makes decisions based on a broad set of features rather than hyper-focusing on specific noise in the training set.
+  - **The Step: $W = W - (\text{Learning Rate} \times \text{Gradient})$:**
+    - This is where the actual "learning" happens. The learning rate controls the size of the step we take toward the solution. Too large, and we "overshoot"; too small, and the model takes forever to train.
 
-We use a **weighted Binary Cross Entropy (BCE)** loss with `pos_weight=3.0`.
+#### **Inference - `predict_proba()`**
+  - **The "Translator":** Converts the raw scores (logits) from the final layer into a probability between **0 and 1** using the **Sigmoid Activation Function** $(1 / (1 + e^{-x}))$.
+    - **Probability vs. Prediction:** This method doesn't just say "Yes" or "No"; it tells us how confident the model is. For example, a result of `0.92` means the model is 92% sure the text contains PII.
+  - **Inference Mode Logic: - Training Toggle:** Automatically sets `self.training = False`.
+    - **Why this is critical:** During inference, we **must disable Dropout**. We want the full "wisdom" of all neurons working together, not a random 90% subset. This ensures the model's predictions are consistent and reproducible.
+  - **Thresholding:** While `predict_proba()` provides the decimal, we typically use a threshold of **0.5** to make the final binary decision (PII Detected vs. No PII).
 
-**What is Binary Cross Entropy?**  
-It measures how well the model’s predicted probability matches the true label (0 or 1). It heavily penalizes confident wrong predictions.
-
-**Why we used a weighted version:**  
-The dataset is imbalanced — only about 25% of samples contain unmasked PII. By giving the positive class 3× more weight, the model is forced to pay much more attention to correctly detecting the rare (but important) “has PII” cases.
-
-The implementation also includes a numerically stable version to avoid overflow or log(0) errors.
-
----
+### 3. **Loss Function - `stable_bce_loss()`**
+  - **Weighted Binary Cross Entropy (BCE):** Measures the "distance" between the model’s predicted raw scores (logits) and the true labels (0 or 1).
+    - **Why BCE?** It is the standard for binary classification because it heavily penalizes "confident" wrong predictions, forcing the model to become more certain about its decisions.
+    - **Class Weighting (`pos_weight=2.0`):** Since our PII dataset is imbalanced, we assign double the penalty to missed positive cases. This ensures the model's "compass" is pointed toward finding PII, even when it is rare.
+  - **Numerical Stability:** The implementation uses the Log-Sum-Exp trick to prevent "Overflow" or "Log(0)" errors.
+    - **Why it matters:** Computers struggle with extremely small or large numbers. Without this stability, the model might "explode" or return NaN (Not a Number) during training. 
+  - **The "Monitor" Role:** While the `backward()` method handles the actual math of the updates, `stable_bce_loss()` provides the human-readable metric we use to track progress.
+    - **The Integral Connection:** The loss value represents the accumulation of error across the dataset. While the `backward()` method calculates the instantaneous 'slope' (gradient) to fix the weights, the loss function gives us the 'total altitude'—telling us how far we are from the bottom of the mountain.
 
 ## Technologies Used
 
@@ -98,24 +118,25 @@ The implementation also includes a numerically stable version to avoid overflow 
 
 ## Results
 
-**Test Accuracy:** 93.3%
+**Test Accuracy:** `0.9333 (93.33%)`  
+**Inference time:** `0.008` seconds
 
 ### Classification Report
 
 | Class       | Precision | Recall | F1-Score | Support |
 |-------------|-----------|--------|----------|---------|
-| 0 (No PII)  | 0.9167    | 1.0000 | 0.9565   | 22      |
-| 1 (Has PII) | 1.0000    | 0.7500 | 0.8571   | 8       |
+| 0 (No PII)  | 0.9545    | 0.9545 | 0.9545   | 22      |
+| 1 (Has PII) | 0.8750    | 0.8750 | 0.8750   | 8       |
 | **Accuracy**    |           |        | **0.9333** | **30**  |
-| Macro Avg   | 0.9583    | 0.8750 | 0.9068   | 30      |
-| Weighted Avg| 0.9389    | 0.9333 | 0.9300   | 30      |
+| Macro Avg   | 0.9148    | 0.9148 | 0.9148   | 30      |
+| Weighted Avg| 0.9333    | 0.9333 | 0.9333   | 30      |
 
 ### Confusion Matrix
 
 |                  | Predicted No PII | Predicted Has PII |
 |------------------|------------------|-------------------|
-| **Actual No PII** | 22               | 0                 |
-| **Actual Has PII**| 2                | 6                 |
+| **Actual No PII** | 21               | 1                 |
+| **Actual Has PII**| 1                | 7                 |
 ---
 
 ## How to Run
@@ -134,12 +155,12 @@ The implementation also includes a numerically stable version to avoid overflow 
 
 4. Open and run the notebook:
 - Launch Jupyter Notebook, VS Code, or Google Colab
-- Open ScratchNet.ipynb
+- Open ScratchNet - Demo.ipynb
 
 
 Important Notes:
 
 A small sample training dataset is included for quick testing and demonstration.
 The full training set (~45MB) is not included in the repo due to GitHub file size limits.
-Pre-trained model weights (scratchnet_2575weights_best.npz) are provided, so you can skip training and directly run the testing/evaluation cells.
+Pre-trained model weights (scratchnet_weights_demo.npz) are provided, so you can skip training and directly run the testing/evaluation cells.
    
