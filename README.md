@@ -84,7 +84,7 @@ I built the entire network from scratch using only NumPy. Here’s what each maj
   - **Mini-batch Stochastic Gradient Descent (SGD):*** Weights and biases are updated using a learning rate of 0.00375 and a batch_size=128.
     - **The "Goldilocks" Balance:** Mini-batch SGD sits between Stochastic (one point) and Full-Batch (all data) descent. It provides enough noise to escape "local minima" while maintaining the stability needed for smooth convergence.
   - **L2 Regularization (Weight Decay):** We apply a penalty of l2_lambda=0.005 to the weights during each update.
-    - **How it works:** In every step, the weights are slightly "shrunk" toward zero before the gradient is applied ($W = W \times (1 - \text{lr} \cdot \lambda)$).
+    - **How it works:** In every step, the weights are slightly "shrunk" toward zero before the gradient is applied $(W = W \times (1 - \text{lr} \cdot \lambda))$.
     - **Why L2?** It prevents any single weight from becoming too large and "overpowering" the model. This ensures the network makes decisions based on a broad set of features rather than hyper-focusing on specific noise in the training set.
   - **The Step: $W = W - (\text{Learning Rate} \times \text{Gradient})$:**
     - This is where the actual "learning" happens. The learning rate controls the size of the step we take toward the solution. Too large, and we "overshoot"; too small, and the model takes forever to train.
